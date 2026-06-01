@@ -5,7 +5,7 @@
 // 2. Paste your Client ID below
 // 3. Add your deployment URL as a Redirect URI in the Spotify app settings
 //    (e.g. https://yourname.github.io/spotify-true-shuffle/ or https://yourapp.netlify.app/)
-const CLIENT_ID = 'YOUR_CLIENT_ID';
+const CLIENT_ID = '2c5e62fe899d4881825d68e9e6c2f199';
 
 const REDIRECT_URI = location.origin + location.pathname.replace(/index\.html$/, '');
 const SCOPES = [
