@@ -294,7 +294,7 @@ async function renderPicker() {
     return `<button class="pitem" data-i="${i}" onclick="pickByEl(this)">
       ${img}
       <span class="pname">${esc(p.name)}</span>
-      <span class="pcnt">${p.tracks.total}</span>
+      <span class="pcnt">${p.tracks?.total ?? '?'}</span>
     </button>`;
   }).join('');
 
