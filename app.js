@@ -160,12 +160,12 @@ async function startSession(sourceId, sourceName) {
     });
   } catch (e) {
     if (e.message.includes('403')) {
-      // Cached OAuth grant missing write scopes — clear token and force full re-auth
-      ls.d('ts_tok');
-      html(`<div class="screen center">
-        <p class="warn-box">Spotify needs permission to create playlists. Reconnecting…</p>
-      </div>`);
-      setTimeout(login, 1500);
+      // Spotify cached grant is missing write scope — auto-redirect loops, so stop here.
+      // Mark token as lacking write scope; render() will show the revoke-and-reconnect screen.
+      const tok = ls.g('ts_tok');
+      if (tok) ls.s('ts_tok', { ...tok, has_write: false });
+      else ls.d('ts_tok');
+      render();
       return;
     }
     throw e;
@@ -418,11 +418,13 @@ async function render() {
   if (tok && tok.has_write === false) {
     html(`<div class="screen center">
       <div class="logo">\u{1F500}</div>
-      <p class="error">Spotify didn't grant playlist permissions.<br>This happens when another app authorization is cached.</p>
-      <p style="color:#b3b3b3;font-size:13px;max-width:280px;line-height:1.6">
-        Tap below to remove cached access, then reconnect.
+      <p class="error">Spotify is blocking playlist creation.<br>A one-time fix is needed.</p>
+      <p style="color:#b3b3b3;font-size:13px;max-width:280px;line-height:1.8;text-align:left">
+        <strong style="color:#fff">Step 1:</strong> Tap <em>Remove access</em> — opens Spotify.<br>
+        <strong style="color:#fff">Step 2:</strong> Find this app and tap <em>Remove access</em>.<br>
+        <strong style="color:#fff">Step 3:</strong> Come back here and tap <em>Reconnect</em>.
       </p>
-      <a class="btn primary" href="https://www.spotify.com/account/apps/" target="_blank">Remove cached access</a>
+      <a class="btn primary" href="https://www.spotify.com/account/apps/" target="_blank">Remove access →</a>
       <button class="btn secondary" onclick="ls.d('ts_tok');login()">Reconnect Spotify</button>
     </div>`);
     return;
