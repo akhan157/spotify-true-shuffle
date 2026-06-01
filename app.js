@@ -356,6 +356,13 @@ async function pickId(id, name) {
   try {
     await startSession(id, name);
   } catch (e) {
+    if (e.message.includes('403')) {
+      const tok = ls.g('ts_tok');
+      if (tok) ls.s('ts_tok', { ...tok, has_write: false });
+      else ls.d('ts_tok');
+      render();
+      return;
+    }
     html(`<div class="screen center">
       <p class="error">${esc(e.message)}</p>
       <button class="btn secondary" onclick="render()">Back</button>
