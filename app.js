@@ -67,11 +67,21 @@ function saveTok(d) { ls.s('ts_tok', { ...d, exp: Date.now() + d.expires_in * 10
 async function api(method, path, body) {
   const token = await getToken();
   if (!token) { ls.d('ts_tok'); render(); throw new Error('Session expired — please reconnect.'); }
-  const r = await fetch(`https://api.spotify.com/v1${path}`, {
-    method,
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-  });
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 12000);
+  let r;
+  try {
+    r = await fetch(`https://api.spotify.com/v1${path}`, {
+      method,
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+      signal: ctrl.signal,
+    });
+  } catch (e) {
+    clearTimeout(timer);
+    throw new Error(e.name === 'AbortError' ? 'Request timed out. Check your connection.' : e.message);
+  }
+  clearTimeout(timer);
   if (r.status === 204) return {};
   if (!r.ok) {
     const msg = await r.text().catch(() => r.statusText);
@@ -279,40 +289,39 @@ async function renderPicker() {
   try {
     const items = await paginate('/me/playlists', 50);
     _playlists = items.filter(p => p && !p.name?.startsWith(SESSION_PREFIX));
+
+    const rows = _playlists.map((p, i) => {
+      const img = p.images?.[0]?.url
+        ? `<img src="${esc(p.images[0].url)}" alt="">`
+        : `<div class="img-ph"></div>`;
+      return `<button class="pitem" data-i="${i}" onclick="pickByEl(this)">
+        ${img}
+        <span class="pname">${esc(p.name ?? 'Untitled')}</span>
+        <span class="pcnt">${p.tracks?.total ?? '?'}</span>
+      </button>`;
+    }).join('');
+
+    html(`<div class="screen">
+      <header>
+        <span class="hlogo">\u{1F500} True Shuffle</span>
+        <button class="lout" onclick="doLogout()">Log out</button>
+      </header>
+      <p class="hint">Pick a source to shuffle:</p>
+      <div class="list">
+        <button class="pitem liked" onclick="pickId('liked','Liked Songs')">
+          <div class="img-liked">♥</div>
+          <span class="pname">Liked Songs</span>
+          <span class="pcnt">up to ${MAX_TRACKS}</span>
+        </button>
+        ${rows}
+      </div>
+    </div>`);
   } catch (e) {
     html(`<div class="screen center">
       <p class="error">${esc(e.message)}</p>
       <button class="btn secondary" onclick="render()">Retry</button>
     </div>`);
-    return;
   }
-
-  const rows = _playlists.map((p, i) => {
-    const img = p.images?.[0]?.url
-      ? `<img src="${esc(p.images[0].url)}" alt="">`
-      : `<div class="img-ph"></div>`;
-    return `<button class="pitem" data-i="${i}" onclick="pickByEl(this)">
-      ${img}
-      <span class="pname">${esc(p.name)}</span>
-      <span class="pcnt">${p.tracks?.total ?? '?'}</span>
-    </button>`;
-  }).join('');
-
-  html(`<div class="screen">
-    <header>
-      <span class="hlogo">\u{1F500} True Shuffle</span>
-      <button class="lout" onclick="doLogout()">Log out</button>
-    </header>
-    <p class="hint">Pick a source to shuffle:</p>
-    <div class="list">
-      <button class="pitem liked" onclick="pickId('liked','Liked Songs')">
-        <div class="img-liked">♥</div>
-        <span class="pname">Liked Songs</span>
-        <span class="pcnt">up to ${MAX_TRACKS}</span>
-      </button>
-      ${rows}
-    </div>
-  </div>`);
 }
 
 function pickByEl(el) {
