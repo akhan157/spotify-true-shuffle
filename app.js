@@ -149,11 +149,25 @@ async function startSession(sourceId, sourceName) {
   setStatus(`Shuffled ${uris.length} tracks. Creating playlist…`);
 
   const me = await api('GET', '/me');
-  const pl = await api('POST', `/users/${me.id}/playlists`, {
-    name: `${SESSION_PREFIX}${sourceName}`,
-    description: 'True Shuffle session. Auto-deletes after 1hr idle.',
-    public: false,
-  });
+  let pl;
+  try {
+    pl = await api('POST', `/users/${me.id}/playlists`, {
+      name: `${SESSION_PREFIX}${sourceName}`,
+      description: 'True Shuffle session. Auto-deletes after 1hr idle.',
+      public: false,
+    });
+  } catch (e) {
+    if (e.message.includes('403')) {
+      // Cached OAuth grant missing write scopes — clear token and force full re-auth
+      ls.d('ts_tok');
+      html(`<div class="screen center">
+        <p class="warn-box">Spotify needs permission to create playlists. Reconnecting…</p>
+      </div>`);
+      setTimeout(login, 1500);
+      return;
+    }
+    throw e;
+  }
 
   for (let i = 0; i < uris.length; i += 100) {
     setStatus(`Adding tracks… ${Math.min(i + 100, uris.length)}/${uris.length}`);
@@ -229,6 +243,7 @@ async function login() {
     code_challenge_method: 'S256',
     code_challenge: await sha256B64(verifier),
     state,
+    show_dialog: 'true', // always show permission screen so cached grants can't skip scopes
   });
   location.href = `https://accounts.spotify.com/authorize?${p}`;
 }
