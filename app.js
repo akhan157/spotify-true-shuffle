@@ -160,20 +160,24 @@ async function startSession(sourceId, sourceName) {
     await api('POST', `/playlists/${pl.id}/tracks`, { uris: uris.slice(i, i + 100) });
   }
 
-  setStatus('Starting playback…');
-  let noDevice = false;
-  try {
-    await api('PUT', '/me/player/play', { context_uri: `spotify:playlist:${pl.id}` });
-  } catch (e) {
-    // 404 = no active device; prompt user to open Spotify first
-    noDevice = true;
+  const isPremium = me.product === 'premium';
+  let noDevice = !isPremium;
+
+  if (isPremium) {
+    setStatus('Starting playback…');
+    try {
+      await api('PUT', '/me/player/play', { context_uri: `spotify:playlist:${pl.id}` });
+      noDevice = false;
+    } catch {
+      noDevice = true;
+    }
   }
 
-  const sess = { pid: pl.id, source: sourceName, count: uris.length, t0: Date.now() };
+  const sess = { pid: pl.id, source: sourceName, count: uris.length, t0: Date.now(), noDevice };
   ls.s('ts_sess', sess);
   _idleStart = null;
   startPoll();
-  renderSession(sess, null, noDevice);
+  renderSession(sess, null, sess.noDevice);
 }
 
 function startPoll() {
@@ -190,6 +194,7 @@ async function pollPlayback() {
     const active = state?.is_playing === true && state?.context?.uri?.includes(s.pid);
     if (active) {
       _idleStart = null;
+      if (s.noDevice) { s.noDevice = false; ls.s('ts_sess', s); }
       renderSession(s, null, false);
     } else {
       if (!_idleStart) _idleStart = Date.now();
@@ -200,7 +205,7 @@ async function pollPlayback() {
         ls.d('ts_sess');
         render();
       } else {
-        renderSession(s, Math.ceil((IDLE_LIMIT_MS - idle) / 60000), false);
+        renderSession(s, Math.ceil((IDLE_LIMIT_MS - idle) / 60000), s.noDevice);
       }
     }
   } catch { /* network hiccup — skip this tick */ }
@@ -346,7 +351,7 @@ function renderSession(s, idleLeft, noDevice) {
     ? `<p class="idle-warn">⏱ Paused — deletes in ${idleLeft} min</p>`
     : `<p class="idle-ok">▶ Playing</p>`;
   const deviceWarn = noDevice
-    ? `<p class="warn-box">No active Spotify device found. Open Spotify on any device, then tap the button below.</p>`
+    ? `<p class="warn-box">Playlist ready. Open Spotify and tap the button below to start playing.</p>`
     : '';
   html(`<div class="screen center">
     <div class="logo">\u{1F500}</div>

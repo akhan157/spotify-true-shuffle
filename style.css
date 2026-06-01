@@ -5,16 +5,19 @@ body {
   color: #fff;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   min-height: 100vh;
+  min-height: 100dvh;
   overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
 }
 
-#app { min-height: 100vh; }
+#app { min-height: 100vh; min-height: 100dvh; }
 
 .screen {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  padding: 24px 16px env(safe-area-inset-bottom, 16px);
+  padding: 24px 16px max(env(safe-area-inset-bottom, 0px), 16px);
 }
 
 .screen.center {
