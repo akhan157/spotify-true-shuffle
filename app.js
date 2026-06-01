@@ -415,7 +415,7 @@ async function render() {
   if (!token) { renderLogin(); return; }
 
   const tok = ls.g('ts_tok');
-  if (tok && !tok.has_write) {
+  if (tok && tok.has_write === false) {
     html(`<div class="screen center">
       <div class="logo">\u{1F500}</div>
       <p class="error">Spotify didn't grant playlist permissions.<br>This happens when another app authorization is cached.</p>
@@ -436,7 +436,7 @@ async function render() {
       ls.d('ts_sess');
     } else {
       startPoll();
-      renderSession(sess, null, false);
+      renderSession(sess, null, sess.noDevice ?? false);
       pollPlayback();
       return;
     }
