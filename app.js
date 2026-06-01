@@ -347,9 +347,14 @@ async function pickId(id, name) {
 }
 
 function renderSession(s, idleLeft, noDevice) {
-  const statusHtml = idleLeft != null
-    ? `<p class="idle-warn">⏱ Paused — deletes in ${idleLeft} min</p>`
-    : `<p class="idle-ok">▶ Playing</p>`;
+  let statusHtml;
+  if (noDevice) {
+    statusHtml = `<p class="idle-warn">⏸ Not started</p>`;
+  } else if (idleLeft != null) {
+    statusHtml = `<p class="idle-warn">⏱ Paused — deletes in ${idleLeft} min</p>`;
+  } else {
+    statusHtml = `<p class="idle-ok">▶ Playing</p>`;
+  }
   const deviceWarn = noDevice
     ? `<p class="warn-box">Playlist ready. Open Spotify and tap the button below to start playing.</p>`
     : '';
