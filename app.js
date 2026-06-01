@@ -11,8 +11,7 @@ const REDIRECT_URI = location.origin + location.pathname.replace(/index\.html$/,
 const SCOPES = [
   'playlist-read-private',
   'playlist-read-collaborative',
-  'playlist-modify-private',
-  'playlist-modify-public',
+  'playlist-modify-public',  // public playlists only — simpler grant, less likely to be blocked
   'user-library-read',
   'user-read-playback-state',
   'user-modify-playback-state',
@@ -56,12 +55,15 @@ async function getToken() {
     });
     if (!r.ok) { ls.d('ts_tok'); return null; }
     const d = await r.json();
-    ls.s('ts_tok', { ...d, exp: Date.now() + d.expires_in * 1000 });
+    saveTok(d);
     return d.access_token;
   } catch { ls.d('ts_tok'); return null; }
 }
 
-function saveTok(d) { ls.s('ts_tok', { ...d, exp: Date.now() + d.expires_in * 1000 }); }
+function saveTok(d) {
+  const granted = new Set((d.scope || '').split(' '));
+  ls.s('ts_tok', { ...d, exp: Date.now() + d.expires_in * 1000, has_write: granted.has('playlist-modify-public') });
+}
 
 // ─── Spotify API wrapper ──────────────────────────────────────────────────────
 async function api(method, path, body) {
@@ -154,7 +156,7 @@ async function startSession(sourceId, sourceName) {
     pl = await api('POST', `/users/${me.id}/playlists`, {
       name: `${SESSION_PREFIX}${sourceName}`,
       description: 'True Shuffle session. Auto-deletes after 1hr idle.',
-      public: false,
+      public: true,
     });
   } catch (e) {
     if (e.message.includes('403')) {
@@ -411,6 +413,20 @@ async function render() {
 
   const token = await getToken();
   if (!token) { renderLogin(); return; }
+
+  const tok = ls.g('ts_tok');
+  if (tok && !tok.has_write) {
+    html(`<div class="screen center">
+      <div class="logo">\u{1F500}</div>
+      <p class="error">Spotify didn't grant playlist permissions.<br>This happens when another app authorization is cached.</p>
+      <p style="color:#b3b3b3;font-size:13px;max-width:280px;line-height:1.6">
+        Tap below to remove cached access, then reconnect.
+      </p>
+      <a class="btn primary" href="https://www.spotify.com/account/apps/" target="_blank">Remove cached access</a>
+      <button class="btn secondary" onclick="ls.d('ts_tok');login()">Reconnect Spotify</button>
+    </div>`);
+    return;
+  }
 
   const sess = getSession();
   if (sess) {
