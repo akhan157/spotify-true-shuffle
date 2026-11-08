@@ -230,7 +230,7 @@ async function pollPlayback() {
 // ─── Auth ──────────────────────────────────────────────────────────────────────
 async function login() {
   if (CLIENT_ID === 'YOUR_CLIENT_ID') {
-    alert('Open app.js and set CLIENT_ID to your Spotify Developer app Client ID first.');
+    alert('Open app-v5.js and set CLIENT_ID to your Spotify Developer app Client ID first.');
     return;
   }
   const verifier = randB64(96);
